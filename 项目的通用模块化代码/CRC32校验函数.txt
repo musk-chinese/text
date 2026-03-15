@@ -1,0 +1,29 @@
+//用于生成CRC32码表
+unsigned int crc32_for_byte(unsigned int r){
+    //为什么循环8次，因为一个字节有8位，要逐位完成模2出发
+    for (int j = 0; j <8; ++j)
+        r = (r & 1 ? 0 : (unsigned int)0xEDB88320L) ^ r >> 1;
+    return r ^(unsigned int)0xFF000000L;
+}
+
+
+
+//CRC32校验
+unsigned int crc32(const void *data, int n_bytes){
+
+    // 为什么初始化crc=0xFFFFFFFF？这是CRC32的行业标准初始值，相当于“计算器清零”
+    unsigned int crc = 0xFFFFFFFF;
+
+
+    // 为什么用static？static数组在程序运行期间只创建一次，值会保留
+    static unsigned int table[0x100];
+    // 为什么判断!*table？第一次调用时table[0]是0，触发生成；后续调用table[0]有值，跳过
+    if (!*table) // 只生成一次码表，提升效率
+        for (int i = 0;i <0x100; ++i)
+            table[i] = crc32_for_byte(i);
+
+
+    for (int i = 0; i < n_bytes; ++i)
+        crc = table[(byte)crc ^ ((byte *)data)[i]] ^ crc >> 8;
+    return crc;
+}
