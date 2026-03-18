@@ -89,7 +89,7 @@ struct OCP{
     byte reservation[6];//预留字段
     byte mark2[2];//标志2
     byte len[2];//长度
-    byte* data;//数据（服务端用指针没问题，因为data是main栈上的数组）
+    byte data[256];//数据（改为固定数组以避免野指针问题）
 };
 
 //打印OCP
@@ -365,9 +365,11 @@ MAC bytesToMAC(byte* frame, byte Data[]){
 
     // OCP数据解析（边界检查）
     int ocp_data_len = lenMAC - 80;
-    if (ocp_data_len > 0) {
+    if (ocp_data_len > 0 && ocp_data_len <= 256) {
         memcpy(Data, &frame[76], ocp_data_len);
-        ocp.data = Data;
+        memcpy(ocp.data, &frame[76], ocp_data_len);
+    } else {
+        memset(ocp.data, 0, sizeof(ocp.data));
     }
 
     //MAC FCS解析
@@ -421,7 +423,12 @@ OCP encapsulateOCP(byte data[], int len){
     // 边界检查：限制数据长度不超过256
     short lenOCP = (len > 256) ? 256 + 34 : len + 34;
     shortToByte(lenOCP, ocp.len);
-    ocp.data = data; // 服务端此处用指针没问题（data是main栈上的数组）
+    // 改为拷贝数据到结构体内部数组，避免指针悬空风险
+    if (len > 0 && len <= 256) {
+        memcpy(ocp.data, data, len);
+    } else {
+        memset(ocp.data, 0, sizeof(ocp.data));
+    }
     return ocp;
 }
 
